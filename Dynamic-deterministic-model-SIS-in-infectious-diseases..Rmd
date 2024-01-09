@@ -1,0 +1,90 @@
+---
+title: "Dyanamic deterministic (SIS) model in infectious disease"
+author: "Joshua Edefo"
+date: "2024-01-09"
+email: "edefojoshua2000@yahoo.com"
+output: github_document
+---
+Libraries
+```{r a, message=FALSE}
+
+library(deSolve)
+library(ggplot2)
+library(reshape2)
+```
+Inputs
+
+```{r b}
+
+N<-100000 #population
+
+state_values<- c( S = N - 1,    # suseptible
+                 I = 1,        # infected
+                 R = 0)        # recovered
+
+parameters<- c(beta = 1/2,    # infection rate days^-1 (2 days)
+               gamma = 1/4)    # recovery rate days^-1 ( 4days)
+               
+#Timeframe ( sequence from 0 to 100 days by model)
+
+times<- seq(0, 100, by = 1)
+
+# Model
+sir_model<- function(time, state, parameters){
+  with(as.list(c(state, parameters)), {
+    N<- S + I + R
+    lambda = beta * I/N                # force of infection
+    dS = -lambda * S                     # -forec of infection * S
+    dI<- lambda * S - gamma * I          # force of infection * S - recovery rate * S
+    dR = gamma * I            # recovery rate * S
+    return(list(c(dS,dI,dR)))
+  })
+}
+```
+# Output
+
+```{r c}
+
+
+# calculation of the differential equations
+output<- as.data.frame (ode(y= state_values,
+                     times = times,
+                     func =  sir_model,
+                     parms = parameters))
+
+output_full<- melt(as.data.frame(output), id = "time")
+
+output_full$proportion<- output_full$value/sum(state_values)
+
+# Plot
+ggplot(data = output, aes(x=time, y = I)) +
+  geom_line() +
+  xlab("Time(days)")+
+  ylab("Number of Infected")+
+  labs("SIR Model")
+
+ggplot(output_full, aes(x=time, y = proportion, color = variable, gropu = variable)) +
+  geom_line() +
+  xlab("Time(days)") +
+  ylab("Prevalence") +
+  labs(colour = "Compartment", title = "SIR Model")
+
+output$reff<- parameters["beta"]/ parameters["gamma"] * output$S/ (output$S+output$I+output$R)
+output$R0<-parameters["beta"]/ parameters["gamma"]
+
+ggplot()+
+geom_line(data= output, aes(x=time, y = reff)) +
+geom_line(data= output, aes(x=time, y = R0), color = "red") +
+geom_point(data= output, aes(x=time, y = reff), color = "green") +
+xlab("Time(days)") +
+ylab("Reff") +
+labs(colour = paste ("Reproduction number levels with: Bata = ", parameters ["beta"], " and Gamma =", parameters["gamma"]))
+
+```
+
+session information
+```{r d}
+sessionInfo()
+```
+
+```
